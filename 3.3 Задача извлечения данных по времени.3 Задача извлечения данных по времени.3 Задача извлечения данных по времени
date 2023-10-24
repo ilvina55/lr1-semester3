@@ -1,0 +1,546 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": 55,
+   "id": "3fe4945d",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "from configparser import ConfigParser\n",
+    "import psycopg2\n",
+    "import requests\n",
+    "from typing import Dict, List"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 56,
+   "id": "daced821",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def load_connection_info(\n",
+    "    ini_filename: str\n",
+    ") -> Dict[str, str]:\n",
+    "    parser = ConfigParser()\n",
+    "    parser.read(ini_filename)\n",
+    "# Create a dictionary of the variables stored under the \"postgresql\" section of the .ini\n",
+    "    conn_info = {param[0]: param[1] for param in\n",
+    "parser.items(\"postgresql\")}\n",
+    "    return conn_info\n",
+    "\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 57,
+   "id": "044e7abe",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def create_db(\n",
+    "    conn_info: Dict[str, str],\n",
+    ") -> None:\n",
+    "    psql_connection_string = \"user=\"\\\n",
+    "    f\"{conn_info['user']} password={conn_info['password']}\"\n",
+    "    conn = psycopg2.connect(psql_connection_string)\n",
+    "    cur = conn.cursor()\n",
+    "    conn.autocommit = True\n",
+    "    sql_query = f\"CREATE DATABASE {conn_info['database']}\"\n",
+    "    try:\n",
+    "        cur.execute(sql_query)\n",
+    "    except Exception as e:\n",
+    "        print(f\"{type(e).__name__}: {e}\")\n",
+    "        print(f\"Query: {cur.query}\")\n",
+    "        cur.close()\n",
+    "    else:\n",
+    "            conn.autocommit = False"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 26,
+   "id": "646fa101",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def create_table(\n",
+    "    sql_query: str,\n",
+    "    conn: psycopg2.extensions.connection,\n",
+    "    cur: psycopg2.extensions.cursor\n",
+    ") -> None:\n",
+    "    try:\n",
+    " # Execute the table creation query\n",
+    "        cur.execute(sql_query)\n",
+    "    except Exception as e:\n",
+    "        print(f\"{type(e).__name__}: {e}\")\n",
+    "        print(f\"Query: {cur.query}\")\n",
+    "        conn.rollback()\n",
+    "        cur.close()\n",
+    "    else:\n",
+    "        conn.commit()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 59,
+   "id": "718f541b",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "DuplicateDatabase: ОШИБКА:  база данных \"weather\" уже существует\n",
+      "\n",
+      "Query: b'CREATE DATABASE weather'\n"
+     ]
+    }
+   ],
+   "source": [
+    "conn_info = load_connection_info(\"db.ini\")\n",
+    "create_db(conn_info)\n",
+    "\n",
+    "\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 48,
+   "id": "c76f3a9e",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "connection = psycopg2.connect(**conn_info)\n",
+    "cursor = connection.cursor()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "004aeb5f",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "\n",
+    "\n",
+    "            \n",
+    "            \n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 61,
+   "id": "c257c9eb",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "location_sql = \"\"\"\n",
+    "    CREATE TABLE IF NOT EXISTS location (\n",
+    "         id SERIAL PRIMARY KEY,\n",
+    "         name VARCHAR(200) UNIQUE NOT NULL,\n",
+    "         region VARCHAR(200) NOT NULL,\n",
+    "         country VARCHAR(200) NOT NULL,\n",
+    "         tz_id VARCHAR(200) NOT NULL,\n",
+    "         local_time TIMESTAMP NOT NULL,\n",
+    "         last_update TIMESTAMP NOT NULL DEFAULT now(),\n",
+    "         local_time_epoch NUMERIC(10) NOT NULL,\n",
+    "         lat NUMERIC(5, 2) NOT NULL,\n",
+    "         lon NUMERIC(5, 2) NOT NULL\n",
+    "         );\n",
+    "\"\"\"\n",
+    "create_table(location_sql, connection, cursor)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 46,
+   "id": "f10ba66a",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "InterfaceError: cursor already closed\n",
+      "Query: b'\\n    CREATE TABLE IF NOT EXISTS current (\\n         id SERIAL PRIMARY KEY,\\n         condition_id SERIAL REFERENCES condition(id) MATCH SIMPLE\\nON UPDATE CASCADE ON DELETE RESTRICT,\\n         wind_dir VARCHAR(3) NOT NULL,\\n         last_update TIMESTAMP NOT NULL DEFAULT now(),\\n         data_published_epoch NUMERIC(10) NOT NULL,\\n         data_published TIMESTAMP NOT NULL,\\n         temp_c NUMERIC(10,2) NOT NULL,\\n         temp_f NUMERIC(10,2) NOT NULL,\\n         wind_mph NUMERIC(10,2) NOT NULL,\\n         wind_kph NUMERIC(10,2) NOT NULL,\\n         wind_degree NUMERIC(10) NOT NULL,\\n         pressure_mb NUMERIC(10, 2) NOT NULL,\\n         pressure_in NUMERIC(10, 2) NOT NULL,\\n         precip_mm NUMERIC(10, 2) NOT NULL,\\n         precip_in NUMERIC(10, 2) NOT NULL,\\n        69\\n         humidity NUMERIC(10, 2) NOT NULL,\\n         feelslike_c NUMERIC(10, 2) NOT NULL,\\n         feelslike_f NUMERIC(10, 2) NOT NULL,\\n         vis_km NUMERIC(10, 2) NOT NULL,\\n         vis_miles NUMERIC(10, 2) NOT NULL,\\n         uv NUMERIC(10, 2) NOT NULL,\\n         gust_mph NUMERIC(10, 2) NOT NULL,\\n         gust_kph NUMERIC(10, 2) NOT NULL,\\n         is_day BOOLEAN NOT NULL,\\n         cloud BOOLEAN NOT NULL\\n         );\\n'\n"
+     ]
+    }
+   ],
+   "source": [
+    "# Create the \"condition\" tablet\n",
+    "condition_sql = \"\"\"\n",
+    "    CREATE TABLE IF NOT EXISTS condition (\n",
+    "         id SERIAL PRIMARY KEY,\n",
+    "         icon VARCHAR(200) NOT NULL,\n",
+    "         text VARCHAR(50) NOT NULL,\n",
+    "         last_update TIMESTAMP NOT NULL DEFAULT now(),\n",
+    "         code NUMERIC(10) NOT NULL\n",
+    "         );\n",
+    "\"\"\"\n",
+    "create_table(condition_sql, connection, cursor)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "9cc49070",
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 45,
+   "id": "7d1eb684",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "InterfaceError: cursor already closed\n",
+      "Query: b'\\n    CREATE TABLE IF NOT EXISTS current (\\n         id SERIAL PRIMARY KEY,\\n         condition_id SERIAL REFERENCES condition(id) MATCH SIMPLE\\nON UPDATE CASCADE ON DELETE RESTRICT,\\n         wind_dir VARCHAR(3) NOT NULL,\\n         last_update TIMESTAMP NOT NULL DEFAULT now(),\\n         data_published_epoch NUMERIC(10) NOT NULL,\\n         data_published TIMESTAMP NOT NULL,\\n         temp_c NUMERIC(10,2) NOT NULL,\\n         temp_f NUMERIC(10,2) NOT NULL,\\n         wind_mph NUMERIC(10,2) NOT NULL,\\n         wind_kph NUMERIC(10,2) NOT NULL,\\n         wind_degree NUMERIC(10) NOT NULL,\\n         pressure_mb NUMERIC(10, 2) NOT NULL,\\n         pressure_in NUMERIC(10, 2) NOT NULL,\\n         precip_mm NUMERIC(10, 2) NOT NULL,\\n         precip_in NUMERIC(10, 2) NOT NULL,\\n        69\\n         humidity NUMERIC(10, 2) NOT NULL,\\n         feelslike_c NUMERIC(10, 2) NOT NULL,\\n         feelslike_f NUMERIC(10, 2) NOT NULL,\\n         vis_km NUMERIC(10, 2) NOT NULL,\\n         vis_miles NUMERIC(10, 2) NOT NULL,\\n         uv NUMERIC(10, 2) NOT NULL,\\n         gust_mph NUMERIC(10, 2) NOT NULL,\\n         gust_kph NUMERIC(10, 2) NOT NULL,\\n         is_day BOOLEAN NOT NULL,\\n         cloud BOOLEAN NOT NULL\\n         );\\n'\n"
+     ]
+    }
+   ],
+   "source": [
+    "current_sql = \"\"\"\n",
+    "    CREATE TABLE IF NOT EXISTS current (\n",
+    "        id SERIAL PRIMARY KEY,\n",
+    "        condition_id SERIAL REFERENCES condition(id) MATCH SIMPLE\n",
+    "ON UPDATE CASCADE ON DELETE RESTRICT,\n",
+    "    wind_dir VARCHAR(3) NOT NULL,\n",
+    "    last_update TIMESTAMP NOT NULL DEFAULT now(),\n",
+    "    data_published_epoch NUMERIC(10) NOT NULL,\n",
+    "    data_published TIMESTAMP NOT NULL,\n",
+    "    temp_c NUMERIC(10,2) NOT NULL,\n",
+    "    temp_f NUMERIC(10,2) NOT NULL,\n",
+    "    wind_mph NUMERIC(10,2) NOT NULL,\n",
+    "    wind_kph NUMERIC(10,2) NOT NULL,\n",
+    "    wind_degree NUMERIC(10) NOT NULL,\n",
+    "    pressure_mb NUMERIC(10, 2) NOT NULL,\n",
+    "    pressure_in NUMERIC(10, 2) NOT NULL,\n",
+    "    precip_mm NUMERIC(10, 2) NOT NULL,\n",
+    "    precip_in NUMERIC(10, 2) NOT NULL,\n",
+    "    humidity NUMERIC(10, 2) NOT NULL,\n",
+    "    feelslike_c NUMERIC(10, 2) NOT NULL,\n",
+    "    feelslike_f NUMERIC(10, 2) NOT NULL,\n",
+    "    vis_km NUMERIC(10, 2) NOT NULL,\n",
+    "    vis_miles NUMERIC(10, 2) NOT NULL,\n",
+    "    uv NUMERIC(10, 2) NOT NULL,\n",
+    "    gust_mph NUMERIC(10, 2) NOT NULL,\n",
+    "    gust_kph NUMERIC(10, 2) NOT NULL,\n",
+    "    is_day BOOLEAN NOT NULL,\n",
+    "    cloud BOOLEAN NOT NULL\n",
+    " );\n",
+    "\n",
+    "\"\"\"\n",
+    "create_table(current_sql, connection, cursor)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 64,
+   "id": "4901882f",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "InterfaceError: cursor already closed\n",
+      "Query: b'\\n    CREATE TABLE IF NOT EXISTS weather (\\n        id SERIAL PRIMARY KEY,\\n        location_id SERIAL REFERENCES location(id) MATCH SIMPLE ON\\nUPDATE CASCADE ON DELETE RESTRICT,\\n        current_id SERIAL REFERENCES location(id) MATCH SIMPLE ON\\nUPDATE CASCADE ON DELETE RESTRICT,\\n        last_update TIMESTAMP NOT NULL DEFAULT now()\\n );\\n'\n"
+     ]
+    },
+    {
+     "ename": "InterfaceError",
+     "evalue": "connection already closed",
+     "output_type": "error",
+     "traceback": [
+      "\u001b[1;31m---------------------------------------------------------------------------\u001b[0m",
+      "\u001b[1;31mInterfaceError\u001b[0m                            Traceback (most recent call last)",
+      "Cell \u001b[1;32mIn[26], line 8\u001b[0m, in \u001b[0;36mcreate_table\u001b[1;34m(sql_query, conn, cur)\u001b[0m\n\u001b[0;32m      6\u001b[0m    \u001b[38;5;28;01mtry\u001b[39;00m:\n\u001b[0;32m      7\u001b[0m \u001b[38;5;66;03m# Execute the table creation query\u001b[39;00m\n\u001b[1;32m----> 8\u001b[0m        cur\u001b[38;5;241m.\u001b[39mexecute(sql_query)\n\u001b[0;32m      9\u001b[0m    \u001b[38;5;28;01mexcept\u001b[39;00m \u001b[38;5;167;01mException\u001b[39;00m \u001b[38;5;28;01mas\u001b[39;00m e:\n",
+      "\u001b[1;31mInterfaceError\u001b[0m: cursor already closed",
+      "\nDuring handling of the above exception, another exception occurred:\n",
+      "\u001b[1;31mInterfaceError\u001b[0m                            Traceback (most recent call last)",
+      "Cell \u001b[1;32mIn[64], line 12\u001b[0m\n\u001b[0;32m      1\u001b[0m \u001b[38;5;66;03m# Create the \"weather\" table\u001b[39;00m\n\u001b[0;32m      2\u001b[0m weather_sql \u001b[38;5;241m=\u001b[39m \u001b[38;5;124m\"\"\"\u001b[39m\n\u001b[0;32m      3\u001b[0m \u001b[38;5;124m    CREATE TABLE IF NOT EXISTS weather (\u001b[39m\n\u001b[0;32m      4\u001b[0m \u001b[38;5;124m        id SERIAL PRIMARY KEY,\u001b[39m\n\u001b[1;32m   (...)\u001b[0m\n\u001b[0;32m     10\u001b[0m \u001b[38;5;124m );\u001b[39m\n\u001b[0;32m     11\u001b[0m \u001b[38;5;124m\"\"\"\u001b[39m\n\u001b[1;32m---> 12\u001b[0m create_table(weather_sql, connection, cursor)\n",
+      "Cell \u001b[1;32mIn[26], line 12\u001b[0m, in \u001b[0;36mcreate_table\u001b[1;34m(sql_query, conn, cur)\u001b[0m\n\u001b[0;32m     10\u001b[0m     \u001b[38;5;28mprint\u001b[39m(\u001b[38;5;124mf\u001b[39m\u001b[38;5;124m\"\u001b[39m\u001b[38;5;132;01m{\u001b[39;00m\u001b[38;5;28mtype\u001b[39m(e)\u001b[38;5;241m.\u001b[39m\u001b[38;5;18m__name__\u001b[39m\u001b[38;5;132;01m}\u001b[39;00m\u001b[38;5;124m: \u001b[39m\u001b[38;5;132;01m{\u001b[39;00me\u001b[38;5;132;01m}\u001b[39;00m\u001b[38;5;124m\"\u001b[39m)\n\u001b[0;32m     11\u001b[0m     \u001b[38;5;28mprint\u001b[39m(\u001b[38;5;124mf\u001b[39m\u001b[38;5;124m\"\u001b[39m\u001b[38;5;124mQuery: \u001b[39m\u001b[38;5;132;01m{\u001b[39;00mcur\u001b[38;5;241m.\u001b[39mquery\u001b[38;5;132;01m}\u001b[39;00m\u001b[38;5;124m\"\u001b[39m)\n\u001b[1;32m---> 12\u001b[0m     conn\u001b[38;5;241m.\u001b[39mrollback()\n\u001b[0;32m     13\u001b[0m     cur\u001b[38;5;241m.\u001b[39mclose()\n\u001b[0;32m     14\u001b[0m \u001b[38;5;28;01melse\u001b[39;00m:\n",
+      "\u001b[1;31mInterfaceError\u001b[0m: connection already closed"
+     ]
+    }
+   ],
+   "source": [
+    "# Create the \"weather\" table\n",
+    "weather_sql = \"\"\"\n",
+    "    CREATE TABLE IF NOT EXISTS weather (\n",
+    "        id SERIAL PRIMARY KEY,\n",
+    "        location_id SERIAL REFERENCES location(id) MATCH SIMPLE ON\n",
+    "UPDATE CASCADE ON DELETE RESTRICT,\n",
+    "        current_id SERIAL REFERENCES location(id) MATCH SIMPLE ON\n",
+    "UPDATE CASCADE ON DELETE RESTRICT,\n",
+    "        last_update TIMESTAMP NOT NULL DEFAULT now()\n",
+    " );\n",
+    "\"\"\"\n",
+    "create_table(weather_sql, connection, cursor)\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 65,
+   "id": "8d19cec0",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "connection.close()\n",
+    "cursor.close()\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 69,
+   "id": "d6ab7213",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "from threading import Timer"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 66,
+   "id": "ee74cdd0",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def weather_callback():\n",
+    "    payload = {\"key\":\"38b986140543415595f134926231710\",\n",
+    "                \"q\":\"Paris\"}\n",
+    "    r = requests.get(\n",
+    "         \"http://api.weatherapi.com/v1/current.json\",\n",
+    "         params=payload)\n",
+    "    data = r.json()\n",
+    "    print(\"Temperature in Paris is\"\n",
+    "          f\"{data['current']['temp_c']} C\"\n",
+    "          f\" / {data['current']['temp_f']} F\")\n",
+    "    return data"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 70,
+   "id": "22a03d0c",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "t = Timer(interval=30, function=weather_callback)\n",
+    "t.daemon = True"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 72,
+   "id": "4b038823",
+   "metadata": {},
+   "outputs": [
+    {
+     "ename": "RuntimeError",
+     "evalue": "threads can only be started once",
+     "output_type": "error",
+     "traceback": [
+      "\u001b[1;31m---------------------------------------------------------------------------\u001b[0m",
+      "\u001b[1;31mRuntimeError\u001b[0m                              Traceback (most recent call last)",
+      "Cell \u001b[1;32mIn[72], line 1\u001b[0m\n\u001b[1;32m----> 1\u001b[0m t\u001b[38;5;241m.\u001b[39mstart()\n",
+      "File \u001b[1;32m~\\anaconda3\\Lib\\threading.py:952\u001b[0m, in \u001b[0;36mThread.start\u001b[1;34m(self)\u001b[0m\n\u001b[0;32m    949\u001b[0m     \u001b[38;5;28;01mraise\u001b[39;00m \u001b[38;5;167;01mRuntimeError\u001b[39;00m(\u001b[38;5;124m\"\u001b[39m\u001b[38;5;124mthread.__init__() not called\u001b[39m\u001b[38;5;124m\"\u001b[39m)\n\u001b[0;32m    951\u001b[0m \u001b[38;5;28;01mif\u001b[39;00m \u001b[38;5;28mself\u001b[39m\u001b[38;5;241m.\u001b[39m_started\u001b[38;5;241m.\u001b[39mis_set():\n\u001b[1;32m--> 952\u001b[0m     \u001b[38;5;28;01mraise\u001b[39;00m \u001b[38;5;167;01mRuntimeError\u001b[39;00m(\u001b[38;5;124m\"\u001b[39m\u001b[38;5;124mthreads can only be started once\u001b[39m\u001b[38;5;124m\"\u001b[39m)\n\u001b[0;32m    954\u001b[0m \u001b[38;5;28;01mwith\u001b[39;00m _active_limbo_lock:\n\u001b[0;32m    955\u001b[0m     _limbo[\u001b[38;5;28mself\u001b[39m] \u001b[38;5;241m=\u001b[39m \u001b[38;5;28mself\u001b[39m\n",
+      "\u001b[1;31mRuntimeError\u001b[0m: threads can only be started once"
+     ]
+    }
+   ],
+   "source": [
+    "t.start()\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "e8a842c0",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "Exception in thread Thread-6:\n",
+      "Traceback (most recent call last):\n",
+      "  File \"C:\\Users\\Ilvin\\anaconda3\\Lib\\site-packages\\urllib3\\connection.py\", line 174, in _new_conn\n",
+      "    conn = connection.create_connection(\n",
+      "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n",
+      "  File \"C:\\Users\\Ilvin\\anaconda3\\Lib\\site-packages\\urllib3\\util\\connection.py\", line 72, in create_connection\n",
+      "    for res in socket.getaddrinfo(host, port, family, socket.SOCK_STREAM):\n",
+      "               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n",
+      "  File \"C:\\Users\\Ilvin\\anaconda3\\Lib\\socket.py\", line 962, in getaddrinfo\n",
+      "    for res in _socket.getaddrinfo(host, port, family, type, proto, flags):\n",
+      "               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n",
+      "socket.gaierror: [Errno 11001] getaddrinfo failed\n",
+      "\n",
+      "During handling of the above exception, another exception occurred:\n",
+      "\n",
+      "Traceback (most recent call last):\n",
+      "  File \"C:\\Users\\Ilvin\\anaconda3\\Lib\\site-packages\\urllib3\\connectionpool.py\", line 714, in urlopen\n",
+      "    httplib_response = self._make_request(\n",
+      "                       ^^^^^^^^^^^^^^^^^^^\n",
+      "  File \"C:\\Users\\Ilvin\\anaconda3\\Lib\\site-packages\\urllib3\\connectionpool.py\", line 415, in _make_request\n",
+      "    conn.request(method, url, **httplib_request_kw)\n",
+      "  File \"C:\\Users\\Ilvin\\anaconda3\\Lib\\site-packages\\urllib3\\connection.py\", line 244, in request\n",
+      "    super(HTTPConnection, self).request(method, url, body=body, headers=headers)\n",
+      "  File \"C:\\Users\\Ilvin\\anaconda3\\Lib\\http\\client.py\", line 1286, in request\n",
+      "    self._send_request(method, url, body, headers, encode_chunked)\n",
+      "  File \"C:\\Users\\Ilvin\\anaconda3\\Lib\\http\\client.py\", line 1332, in _send_request\n",
+      "    self.endheaders(body, encode_chunked=encode_chunked)\n",
+      "  File \"C:\\Users\\Ilvin\\anaconda3\\Lib\\http\\client.py\", line 1281, in endheaders\n",
+      "    self._send_output(message_body, encode_chunked=encode_chunked)\n",
+      "  File \"C:\\Users\\Ilvin\\anaconda3\\Lib\\http\\client.py\", line 1041, in _send_output\n",
+      "    self.send(msg)\n",
+      "  File \"C:\\Users\\Ilvin\\anaconda3\\Lib\\http\\client.py\", line 979, in send\n",
+      "    self.connect()\n",
+      "  File \"C:\\Users\\Ilvin\\anaconda3\\Lib\\site-packages\\urllib3\\connection.py\", line 205, in connect\n",
+      "    conn = self._new_conn()\n",
+      "           ^^^^^^^^^^^^^^^^\n",
+      "  File \"C:\\Users\\Ilvin\\anaconda3\\Lib\\site-packages\\urllib3\\connection.py\", line 186, in _new_conn\n",
+      "    raise NewConnectionError(\n",
+      "urllib3.exceptions.NewConnectionError: <urllib3.connection.HTTPConnection object at 0x0000016681C37110>: Failed to establish a new connection: [Errno 11001] getaddrinfo failed\n",
+      "\n",
+      "During handling of the above exception, another exception occurred:\n",
+      "\n",
+      "Traceback (most recent call last):\n",
+      "  File \"C:\\Users\\Ilvin\\anaconda3\\Lib\\site-packages\\requests\\adapters.py\", line 486, in send\n",
+      "    resp = conn.urlopen(\n",
+      "           ^^^^^^^^^^^^^\n",
+      "  File \"C:\\Users\\Ilvin\\anaconda3\\Lib\\site-packages\\urllib3\\connectionpool.py\", line 798, in urlopen\n",
+      "    retries = retries.increment(\n",
+      "              ^^^^^^^^^^^^^^^^^^\n",
+      "  File \"C:\\Users\\Ilvin\\anaconda3\\Lib\\site-packages\\urllib3\\util\\retry.py\", line 592, in increment\n",
+      "    raise MaxRetryError(_pool, url, error or ResponseError(cause))\n",
+      "urllib3.exceptions.MaxRetryError: HTTPConnectionPool(host='api.weatherapi.com', port=80): Max retries exceeded with url: /v1/current.json?key=38b986140543415595f134926231710&q=Paris (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000016681C37110>: Failed to establish a new connection: [Errno 11001] getaddrinfo failed'))\n",
+      "\n",
+      "During handling of the above exception, another exception occurred:\n",
+      "\n",
+      "Traceback (most recent call last):\n",
+      "  File \"C:\\Users\\Ilvin\\anaconda3\\Lib\\threading.py\", line 1038, in _bootstrap_inner\n",
+      "    self.run()\n",
+      "  File \"C:\\Users\\Ilvin\\anaconda3\\Lib\\threading.py\", line 1394, in run\n",
+      "    self.function(*self.args, **self.kwargs)\n",
+      "  File \"C:\\Users\\Ilvin\\AppData\\Local\\Temp\\ipykernel_768\\3888966352.py\", line 4, in weather_callback\n",
+      "  File \"C:\\Users\\Ilvin\\anaconda3\\Lib\\site-packages\\requests\\api.py\", line 73, in get\n",
+      "    return request(\"get\", url, params=params, **kwargs)\n",
+      "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n",
+      "  File \"C:\\Users\\Ilvin\\anaconda3\\Lib\\site-packages\\requests\\api.py\", line 59, in request\n",
+      "    return session.request(method=method, url=url, **kwargs)\n",
+      "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n",
+      "  File \"C:\\Users\\Ilvin\\anaconda3\\Lib\\site-packages\\requests\\sessions.py\", line 589, in request\n",
+      "    resp = self.send(prep, **send_kwargs)\n",
+      "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n",
+      "  File \"C:\\Users\\Ilvin\\anaconda3\\Lib\\site-packages\\requests\\sessions.py\", line 703, in send\n",
+      "    r = adapter.send(request, **kwargs)\n",
+      "        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n",
+      "  File \"C:\\Users\\Ilvin\\anaconda3\\Lib\\site-packages\\requests\\adapters.py\", line 519, in send\n",
+      "    raise ConnectionError(e, request=request)\n",
+      "requests.exceptions.ConnectionError: HTTPConnectionPool(host='api.weatherapi.com', port=80): Max retries exceeded with url: /v1/current.json?key=38b986140543415595f134926231710&q=Paris (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000016681C37110>: Failed to establish a new connection: [Errno 11001] getaddrinfo failed'))\n"
+     ]
+    }
+   ],
+   "source": [
+    "import time\n",
+    "try:\n",
+    "    t = Timer(interval=30, function=weather_callback)\n",
+    "    t.daemon = True\n",
+    "    t.start()\n",
+    "    while True:\n",
+    "        time.sleep(0.1)\n",
+    "except KeyboardInterrupt:\n",
+    "    t.cancel()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "cde8d780",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "[weatherapi]\n",
+    "key=38b986140543415595f134926231710\n",
+    "q=Paris\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "c11ec282",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def get_weather(\n",
+    "    ini_filename: str\n",
+    ") -> Dict[str, str]:\n",
+    "    parser = ConfigParser()\n",
+    "    parser.read(ini_filename)\n",
+    "    payload = {\n",
+    "         param[0]: param[1] for param in parser.items(\n",
+    "            \"weatherapi\")}\n",
+    "    r = requests.get(\"http://api.weatherapi.com/v1/current.json\",\n",
+    "    params=payload)\n",
+    "    data = r.json()\n",
+    "    return data\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "17803ca9",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import psycopg2.extras as psql_extras"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "09b00e55",
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "553340ba",
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3 (ipykernel)",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.11.5"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
